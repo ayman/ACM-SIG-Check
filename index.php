@@ -212,10 +212,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
         validates your membership and redirects to another page anonymously.
       </p>
       <p>
-        <small><a href="about.php">About this form.</a> The maintainer
-        of this form does not endorse or check the redirect
-        URL. </small>
+        <small>
+          <a href="about.php">About this form.</a> The maintainer of
+          this form does not endorse or check the redirect URL.  The
+          redirect URL is keyed to the member number but is anonymous. Do not
+          share it.
+        </small>
       </p>
+      <p>
+        <small>
+          <a href="https://github.com/ayman/ACM-SIG-Check/blob/main/LICENSE">ACM
+          SIG Check</a> Open source on Github under GPLv3.
+        </small>
+      </p>                                                           
     </div>
   </body>
 </html>
