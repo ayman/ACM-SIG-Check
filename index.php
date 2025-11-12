@@ -221,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
       </p>
       <p>
         <small>
-          <a href="https://github.com/ayman/ACM-SIG-Check/blob/main/LICENSE">Open
+          <a href="https://github.com/ayman/ACM-SIG-Check/">Open
           source on Github</a> under GPLv3.
         </small>
       </p>                                                           
