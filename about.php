@@ -117,11 +117,14 @@
       </p>
       <p>
         <tt>ep</tt> the redirect error page (if needed). If not set, the form will display an error.
+      </p> 
+      <p>
+        <tt>unsafe</tt> if set this will autoredirect to the success page...<b>not recommended</b>. Default behavior displays the link for the user to verify and click.
       </p>
       <p>
         <tt>sendid</tt> if set to anything, the member number will be
         forwarded to the success page. <i>The form will notify
-        people</i> if this is set. For privacy reasons, use this only
+          people</i> if this is set. For privacy reasons, use this only
         if needed.
       </p>
     </div>

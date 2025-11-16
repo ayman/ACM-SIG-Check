@@ -70,79 +70,56 @@ $sigs = array(
 $_error_redirect = isset($_REQUEST['ep']);
 
 // Check if form was submitted via POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ids'])) {
   // This is the ACM member number
-  $id = trim($_POST['id']);
-  
-  // ACM Endpoint, do not edit!
-  $apiUrl = 'https://cfapi.acm.org/rest/confRegistration/confRegistration/' . $sigid. '/' . urlencode($id);
-  
-  // Initialize cURL
-  $ch = curl_init($apiUrl);
-  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-  curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-  curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-  
-  // Execute the GET request
-  $response = curl_exec($ch);
-  $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-  curl_close($ch);
+  $ids = trim($_POST['ids']);
+  $hashes = preg_split('/[\s,]+/', $ids);
 
-  // Define a secret key (keep this secure and do not hardcode in production)
-  $key = defined('ACM_CHECK_KEY') ? ACM_CHECK_KEY : $_POST['id'];
+  // Define a secret key (keep this secure and do not hardcode in
+  // production)
+  $key = defined('ACM_CHECK_KEY') ? ACM_CHECK_KEY : FALSE;
 
+  if ($key == FALSE) {
+    echo "No secret key set in server, so can't decode.";
+    exit;
+  }
+  
   // Choose a cipher method and mode (e.g., AES-256-CBC)
   $cipher_method = 'aes-256-cbc';
 
   // Generate a random initialization vector (IV)
   // This should be unique for each encryption and stored with the ciphertext
   $iv_length = openssl_cipher_iv_length($cipher_method);
-  // $iv = openssl_random_pseudo_bytes($iv_length);
-  $iv = str_pad(md5($_POST['id'], true), $iv_length, '0', STR_PAD_LEFT);
-  if($sendid) {
-      $iv = str_pad($_POST['id'], $iv_length, '0', STR_PAD_LEFT);
-  }
-  
-  // String to be encrypted: timestamp, sigcode, signame
-  $plaintext = time() . ":" . $sigid . ":" . $sigs[$sigid];
+  $iv = openssl_random_pseudo_bytes($iv_length);
 
-  // Encryption
-  $encrypted_data = openssl_encrypt($plaintext, $cipher_method, $key, 0, $iv);
-  // Combine IV and encrypted data, then base64 encode for storage/transmission
-  $encoded_data = base64_encode($iv . $encrypted_data); 
+  $results_found = FALSE;
 
-  $base_url = $ep;
-  $is_error = TRUE;
+  $bad_hashes = array();
+  $good_hashes = array();
+  $duplicates = array(); 
 
-  // Check if request was successful
-  if ($httpCode == 200 && $response) {
-    $data = json_decode($response, true);
-    // Check if THISSIGACTIVE key exists and its value
-    if (isset($data['THISSIGACTIVE']) && $data['THISSIGACTIVE'] === 'active') {
-      $base_url = $sp;
-      $is_error = FALSE;
+  foreach ($hashes as $hash) {
+    // Code to execute for each $value
+    $decoded_data = base64_decode($hash);
+    // Extract the IV
+    $retrieved_iv = substr($decoded_data, 0, $iv_length);
+    // Extract the actual encrypted data
+    $retrieved_encrypted_data = substr($decoded_data, $iv_length);
+    $decrypted_data = openssl_decrypt($retrieved_encrypted_data, $cipher_method, $key, 0, $retrieved_iv);
+    if ($decrypted_data == null) {
+      array_push($bad_hashes, $hash);
+    } else {
+      $good_hashes[$hash] = $decrypted_data;
+      array_push($duplicates, $hash);
     }
+    $results_found = TRUE;
   }
 
-  $params = array(
-    "sigkey" => $encoded_data,
-    "sigid" => $sigid
-  );
+  $duplicates = array_filter(array_count_values($duplicates), function($count) {
+    return $count > 1;
+  });
 
-  if ($sendid) {
-    $params["id"] = urlencode($id);
-  }
-  
-  $query_string = http_build_query($params);
-  $redirect_url = $base_url . '?' . $query_string;
-  $header_string = 'Location: ' . $redirect_url;
 
-  if ($unsafe && (!$is_error || $_error_redirect)) {
-    header($header_string);
-    exit;  
-  }
-
-  $show_redirect = !$is_error ? TRUE : FALSE;
 }
 ?>
 <!DOCTYPE html>
@@ -150,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACM &amp; SIG Verification</title>
+    <title>ACM Check Checker</title>
     <style type="text/css">
      body {
        font-family: Arial, sans-serif;
@@ -197,11 +174,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
      button:hover {
        background-color: #0056b3;
      }
-     /*
-        Source - https://stackoverflow.com/a
-        Posted by Stirling, modified by community. See post 'Timeline' for change history
-        Retrieved 2025-11-15, License - CC BY-SA 4.0
-      */     
      .wrapword {
        white-space: -moz-pre-wrap !important;  /* Mozilla, since 1999 */
        white-space: -webkit-pre-wrap;          /* Chrome & Safari */ 
@@ -216,59 +188,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
   </head>
   <body>
     <div class="form-container">
-      <h1>ACM <?= $sigs[$sigid]; ?> Check</h1>
-      <?php if ($is_error == TRUE): ?>
+      <h1>ACM Check Checker</h1>
+      <form id="memberCheckForm" method="POST" action="">
+        <label for="id">Hashes to check:</label>
+        <textarea rows="4" cols="50" type="text" id="ids" name="ids" required></textarea>
+        <small><i>Required. Comma or line separated</i></small>
+        <button type="submit">Submit</button>
+        <button onclick="window.location.reload();">Reset</button>
+      </form>
+      <?php if (isset($results_found) && $results_found == TRUE): ?>
         <p>
-          <tt><?= $id; ?></tt>
-          <i>
-            is not a member of this SIG.
-            <br />
-            Check the number and try again.
-          </i>
-        </p>
-      <?php endif; ?>
-      <?php if ($show_redirect == TRUE):  ?>
-        <p>
-          Click the following link to proceed:
-        </p>          
-        <p>
-          <a class="wrapword" href="<?= $redirect_url; ?>"><?= $redirect_url; ?></a>
-        </p>
-        <p>
-          <i>Do not share this link</i>
-        </p>
-        <p>
-          It is anonymously tied to the submitted member number.  Please
-          be aware of the URL's location.
-        </p>
-        <button onclick="window.location.reload();">Reset form</button>
-      <?php else: ?>
-        <form id="memberCheckForm" method="POST" action="">
-          <label for="id">Member Number:</label>
-          <input type="text" id="id" name="id" required>
-          <small><i>Required</i></small>
-          <button type="submit">Submit</button>
-        </form>
-        <?php if ($sendid == TRUE): ?>
-          <p><b><i>Your ACM Member Number will be forwarded with this form.</i></b></p>
-        <?php endif; ?>
-        <p>
-          No information or data is stored in this form; this just
-          validates your membership and redirects to another page anonymously.
-        </p>
-      <?php endif; ?>
-      <p>
-        <small>
-          <a href="about.php">About this form.</a> The maintainer of
-          this form does not endorse or check the redirect URL.
-        </small>
-      </p>
-      <p>
-        <small>
-          <a href="https://github.com/ayman/ACM-SIG-Check/">Open
-            source on Github</a> under GPLv3.
-        </small>
+          Good hashes:        
+          <?php
+          echo '<textarea rows="4" cols="50" type="text" id="gids" name="gids" readonly>';
+          foreach ($good_hashes as $key => $value) {
+            echo $key . ', ' . $value . PHP_EOL;
+          }
+          echo '</textarea>';
+          ?>        
       </p>                                                           
+      <p>
+        Duplicate Good hashes:
+        <?php
+        echo '<textarea rows="4" cols="50" type="text" id="dids" name="dids" readonly>';          
+        foreach ($duplicates as $key => $value) {
+          echo $key . ', ' . $value . PHP_EOL;            
+        }
+        echo '</textarea>';
+        ?>
+      </p>                                                           
+      <p>
+        Bad hashes:
+        <?php
+        echo '<textarea rows="4" cols="50" type="text" id="bids" name="bids" readonly>';        
+        for ($i = 0; $i < count($bad_hashes); $i++) { 
+          echo $bad_hashes[$i] . PHP_EOL; 
+        } 
+        echo '</textarea>';
+        ?>
+      </p>
+      <?php endif; ?>
+      <small>
+        <a href="https://github.com/ayman/ACM-SIG-Check/">Open
+          source on Github</a> under GPLv3.
+      </small>      
     </div>
   </body>
 </html>

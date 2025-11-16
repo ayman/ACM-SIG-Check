@@ -1,4 +1,5 @@
 <?php
+require_once $_SERVER['DOCUMENT_ROOT'] . '/../config/config.php';
 
 echo "Good ID: ";
 if (isset($_REQUEST['id'])) {
@@ -8,11 +9,11 @@ if (isset($_REQUEST['id'])) {
 }
 echo "<br />";
 echo "SIG: " . $_REQUEST['sigid'] . "<br />";
-echo "Key: " . $_REQUEST['sigkey'] . "<br />";
+echo "Hash: " . $_REQUEST['sigkey'] . "<br />";
 
 // Define a secret key (keep this secure and do not hardcode in
 // production)
-$key = $_REQUEST['id'];
+$key = defined('ACM_CHECK_KEY') ? ACM_CHECK_KEY : $_REQUEST['id'];
 
 // Choose a cipher method and mode (e.g., AES-256-CBC)
 $cipher_method = 'aes-256-cbc';
@@ -30,7 +31,7 @@ $retrieved_encrypted_data = substr($decoded_data, $iv_length);
 
 $decrypted_data = openssl_decrypt($retrieved_encrypted_data, $cipher_method, $key, 0, $retrieved_iv);
 
-if (isset($_REQUEST['id'])) {
+if (defined('ACM_CHECK_KEY') || isset($_REQUEST['id'])) {
     echo "Decrypted: " . $decrypted_data;
 } else {
     echo "Can't decrypt since ACM ID wasn't sent. Use 'sendid' to test in the form.";
