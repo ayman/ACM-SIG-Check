@@ -4,6 +4,10 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/../config/config.php';
 // URL PARAM 'sigid' to change sigs. Only one sig at a time supported.
 $sigid = isset($_REQUEST['sig']) ? trim($_REQUEST['sig']) : '026';
 
+if (strlen($sigid) < 3) {
+    $sigid = '0' . $sigid;
+}
+
 // URL PARAM 'sp' is the success page redirect. Params will be added to this.
 $sp = isset($_REQUEST['sp']) ? trim($_REQUEST['sp']) : 'success.php';
 $sp = rtrim($sp, "?");
