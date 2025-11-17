@@ -22,7 +22,7 @@ If you do not set this key, the member ID will be used as the encryption key.  T
 Simply visit the index.php page. You can construct a URL (see the `about.php`) based on some parameters.  For example, to redirect to https://acm.org if the member ID is a SIGMM member:
 
 ```
-index.php??sigid=44&sp=https://acm.org/
+index.php?sigid=44&sp=https://acm.org/
 ```
 
 if an active SIGMM member is entered, you will get a custom link to proceed. This is useful for sending to a survey or form.  By default, the member number is not included for anonymous privacy, but there's a parameter to add it if needed.
